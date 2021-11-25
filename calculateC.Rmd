@@ -84,53 +84,53 @@ calcF <- function(R2, B2w, X1wP, X2wP, X3wP){
   n <- length(R2$x)
   F1ind = numeric()
   b <- Norm(X1wP - B2w)
-  # print(b)
   for(i in 1:n){
     # browser()
     x = as.numeric(R2[i,])
     a <- Norm(x - B2w)
-    # print(a)
     if(a >= b){
       F1ind <- c(F1ind,i)
     }
   }
-  # print(F1ind)
   F1 <- R2[F1ind,]
-  R2 <- R2[-F1ind,]
+  #R2 <- R2[-F1ind,]
   
   # calculate F2
-  n <- length(R2$x)
   F2ind = numeric()
   b <- Norm(X2wP - B2w)
   # print(b)
   if(n!=0){
     for(i in 1:n){
-      x = as.numeric(R2[i,])
-      a <- Norm(x - B2w)
-      if(a >= b){
-        F2ind <- c(F2ind,i)
+      if(!(i %in% F1ind)){
+        x = as.numeric(R2[i,])
+        a <- Norm(x - B2w)
+        if(a >= b){
+          F2ind <- c(F2ind,i)
+        }
       }
     }
   }
   F2 <- R2[F2ind,]
-  R2 <- R2[-F2ind,]
+  #R2 <- R2[-F2ind,]
   
   #calculate F3
-  n <- length(R2$x)
+  #n <- length(R2$x)
   F3ind = numeric()
   b <- Norm(X3wP - B2w)
   # print(b)
   if(n != 0){
     for(i in 1:n){
-      x = as.numeric(R2[i,])
-      a <- Norm(x - B2w)
-      if(a >= b){
-        F3ind <- c(F3ind,i)
+      if(!(i %in% F1ind) && !(i %in% F2ind)){
+        x = as.numeric(R2[i,])
+        a <- Norm(x - B2w)
+        if(a >= b){
+          F3ind <- c(F3ind,i)
+        }
       }
     }
   }
   F3 <- R2[F3ind,]
-  R2 <- R2[-F3ind,]
+  #R2 <- R2[-F3ind,]
   
   #calculate F4 (the rest) and F0 (the empty set) 
   F4 <- R2
@@ -213,12 +213,12 @@ calcAllF <- function(){
 
 ```{r}
 #set.seed(42)
-sizeOmega <- 2
+sizeOmega <- 10
 lowerBound <- -1
 upperBound <- 1
 
-xR2 <- seq(-1,1,1)
-yR2 <- seq(-1,1,1)
+xR2 <- seq(-10,10,1)
+yR2 <- seq(-10,10,1)
 R2 <- expand.grid(x = xR2, y = yR2)
 final <- calcAllC()
 final$Cxy
@@ -256,6 +256,7 @@ Some testing
 ```{r}
   dim(allF)
   allF = replicate(sizeOmega, calcAllF())
+  allF[,2]
   testi = unlist(allF[1,1])
   testi
   print(3 %in% testi)
