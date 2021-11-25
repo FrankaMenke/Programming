@@ -1,0 +1,266 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(spatstat)
+library(pracma)
+library(plyr)
+library(plotly)
+library(mltools)
+library(data.table)
+```
+
+
+Function to calculate B1 and B2 of a specific omega. 
+```{r}
+
+calcB2 <- function(X1w, X2w, X3w) {
+  norm12 = norm(X1w-X2w,"2")
+  norm13 = norm(X1w-X3w, "2")
+  norm23 = norm(X2w-X3w, "2")
+  N = c(norm12, norm13, norm23)
+  ind <- which.max(N)
+  if(ind == 1){
+    B2w = X3w
+  }else if(ind == 2){
+    B2w = X2w
+  }
+  else{
+    B2w = X1w
+  }
+  return(list("B2w" = B2w, "ind" = ind))
+}
+
+```
+
+
+Calculate ordered random variables for a specific omega.
+```{r}
+calcOrder <- function(X1w, X2w, X3w, B2w, ind){
+  norm1 = norm(X1w-B2w, "2")
+  norm2 = norm(X2w-B2w, "2")
+  norm3 = norm(X3w-B2w, "2")
+  X3wP <- B2w
+  if (ind == 1){
+    if(norm2 >= norm3){
+      X1wP <- X2w
+      X2wP <- X3w
+    }else{
+      X1wP <- X3w
+      X2wP <- X2w
+    }
+  }else if(ind == 2){
+    if(norm1 >= norm3){
+      X1wP <- X1w
+      X2wP <- X3w
+    }else{
+      X1wP <- X3w
+      X2wP <- X1w
+    }
+  }else{
+    if(norm1 >= norm2){
+      X1wP <- X1w
+      X2wP <- X2w
+    }else{
+      X1wP <- X2w
+      X2wP <- X1w
+    }
+  }
+  
+  return(list("X1" = X1wP, "X2" = X2wP, "X3" = X3wP))
+}
+
+```
+
+Calculate F_i for a specific Omega
+```{r}
+calcF <- function(R2, B2w, X1wP, X2wP, X3wP){
+  
+  # calculate F1
+  # browser()
+  n <- length(R2$x)
+  F1ind = numeric()
+  b <- Norm(X1wP - B2w)
+  # print(b)
+  for(i in 1:n){
+    # browser()
+    x = as.numeric(R2[i,])
+    a <- Norm(x - B2w)
+    # print(a)
+    if(a >= b){
+      F1ind <- c(F1ind,i)
+    }
+  }
+  # print(F1ind)
+  F1 <- R2[F1ind,]
+  R2 <- R2[-F1ind,]
+  
+  # calculate F2
+  n <- length(R2$x)
+  F2ind = numeric()
+  b <- Norm(X2wP - B2w)
+  # print(b)
+  if(n!=0){
+    for(i in 1:n){
+      x = as.numeric(R2[i,])
+      a <- Norm(x - B2w)
+      if(a >= b){
+        F2ind <- c(F2ind,i)
+      }
+    }
+  }
+  F2 <- R2[F2ind,]
+  R2 <- R2[-F2ind,]
+  
+  #calculate F3
+  n <- length(R2$x)
+  F3ind = numeric()
+  b <- Norm(X3wP - B2w)
+  # print(b)
+  if(n != 0){
+    for(i in 1:n){
+      x = as.numeric(R2[i,])
+      a <- Norm(x - B2w)
+      if(a >= b){
+        F3ind <- c(F3ind,i)
+      }
+    }
+  }
+  F3 <- R2[F3ind,]
+  R2 <- R2[-F3ind,]
+  
+  #calculate F4 (the rest) and F0 (the empty set) 
+  F4 <- R2
+  
+  return(list("F1" = F1, "F2" = F2, "F3" = F3, "F4" = F4))
+}
+```
+
+
+
+Calculate Probability of one i which is part of C
+```{r}
+calcProb <- function(sizeOmega, x, ind, allF){
+  count = 0
+  for(i in 1:sizeOmega){
+    Fi <- allF[ind,i]
+    print(x)
+    print(nrow(merge(x,Fi)))
+    if(nrow(merge(x,Fi))>0){
+      count = count + 1
+    }
+  }
+  # print(count/sizeOmega)
+  return(count/sizeOmega)
+}
+```
+
+
+Calculate C for one x (F_i (x) still missing)
+```{r}
+funcC <- function(x, sizeOmega, allF){
+  res = 0
+  
+  for(ind in 1:3){
+    # print(res)
+    res = res + calcProb(sizeOmega, x, ind, allF)
+  }
+  # print(res)
+  return(res/4)
+}
+```
+
+```{r}
+calcAllC <- function(){
+  allF = replicate(sizeOmega, calcAllF())
+  n <- length(R2$x)
+  Cxy <- numeric(n)
+  for(i in 1:n){
+    Cxy[i] <- funcC(R2[i,], sizeOmega, allF)
+  }
+  final <- R2
+  final$Cxy <- Cxy
+  return(final)
+}
+```
+
+Calculate all the X_(i), F_i for all omega 
+```{r}
+calcAllF <- function(){
+  X1w = runif(2,lowerBound, upperBound)
+  X2w = runif(2,lowerBound, upperBound)
+  X3w = runif(2,lowerBound, upperBound)
+  ret <- calcB2(X1w,X2w,X3w)
+  B2w <- ret$B2w
+  ind <- ret$ind
+  
+  ret <- calcOrder(X1w, X2w, X3w, B2w, ind)
+  X1wP <- ret$X1
+  X2wP <- ret$X2
+  X3wP <- ret$X3
+  
+  scriptF <- calcF(R2, B2w, X1wP, X2wP, X3wP)
+  
+  return (scriptF)
+}
+
+```
+
+
+```{r}
+#set.seed(42)
+sizeOmega <- 2
+lowerBound <- -1
+upperBound <- 1
+
+xR2 <- seq(-1,1,1)
+yR2 <- seq(-1,1,1)
+R2 <- expand.grid(x = xR2, y = yR2)
+final <- calcAllC()
+final$Cxy
+
+```
+
+
+```{r}
+dt <- data.table(x = runif(100,-5,5), y = runif(100,-5,5))
+empCDF <- empirical_cdf(dt, ubounds=CJ(x = xR2, y = yR2))
+MatrixempCDF <- matrix(empCDF$CDF, nrow = sqrt(length(empCDF$CDF)), byrow = TRUE)
+MatrixempCDF
+empCDF
+
+length(final$Cxy)
+matrixC <- matrix(final$Cxy, nrow= sqrt(length(final$Cxy)),byrow=FALSE)
+test1 <- list(x, y, matrixC)
+# test1[[1]]
+# x
+persp(test1[[1]],test1[[2]],test1[[3]],col = "springgreen", shade = 0.5)
+
+```
+
+```{r}
+jpeg("plot.jpeg")
+persp(x,y,matrixC,col = "springgreen", shade = 0.5)
+dev.off()
+
+save(test1, file = "test1.RData")
+```
+
+
+Some testing
+
+```{r}
+  dim(allF)
+  allF = replicate(sizeOmega, calcAllF())
+  allF
+allF[1,5]
+  test <- allF[2,1]
+  plot(test$F1$x, test$F1$y, col = "red")
+  points(test$F2$x, test$F2$y, col = "blue")
+  points(test$F3$x, test$F3$y, col = "green")
+
+```
+
