@@ -220,6 +220,9 @@ upperBound <- 1
 xR2 <- seq(-10,10,1)
 yR2 <- seq(-10,10,1)
 R2 <- expand.grid(x = xR2, y = yR2)
+temp <- R2$x
+R2$x <- R2$y
+R2$y <- temp
 final <- calcAllC()
 final$Cxy
 
