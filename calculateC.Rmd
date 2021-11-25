@@ -135,7 +135,7 @@ calcF <- function(R2, B2w, X1wP, X2wP, X3wP){
   #calculate F4 (the rest) and F0 (the empty set) 
   F4 <- R2
   
-  return(list("F1" = F1, "F2" = F2, "F3" = F3, "F4" = F4))
+  return(list("F1ind" = F1ind, "F2ind" = F2ind, "F3ind" = F3ind))
 }
 ```
 
@@ -143,13 +143,14 @@ calcF <- function(R2, B2w, X1wP, X2wP, X3wP){
 
 Calculate Probability of one i which is part of C
 ```{r}
-calcProb <- function(sizeOmega, x, ind, allF){
+calcProb <- function(sizeOmega, ind_x, ind, allF){
   count = 0
   for(i in 1:sizeOmega){
-    Fi <- allF[ind,i]
-    print(x)
-    print(nrow(merge(x,Fi)))
-    if(nrow(merge(x,Fi))>0){
+    Fi_ind <- allF[ind,i]
+    # print(x)
+    # print(nrow(merge(x,Fi)))
+    Fi_ind = unlist(Fi_ind)
+    if(ind_x %in% Fi_ind){
       count = count + 1
     }
   }
@@ -161,12 +162,12 @@ calcProb <- function(sizeOmega, x, ind, allF){
 
 Calculate C for one x (F_i (x) still missing)
 ```{r}
-funcC <- function(x, sizeOmega, allF){
+funcC <- function(ind_x, sizeOmega, allF){
   res = 0
   
   for(ind in 1:3){
     # print(res)
-    res = res + calcProb(sizeOmega, x, ind, allF)
+    res = res + calcProb(sizeOmega, ind_x, ind, allF)
   }
   # print(res)
   return(res/4)
@@ -179,7 +180,7 @@ calcAllC <- function(){
   n <- length(R2$x)
   Cxy <- numeric(n)
   for(i in 1:n){
-    Cxy[i] <- funcC(R2[i,], sizeOmega, allF)
+    Cxy[i] <- funcC(i, sizeOmega, allF)
   }
   final <- R2
   final$Cxy <- Cxy
@@ -255,8 +256,9 @@ Some testing
 ```{r}
   dim(allF)
   allF = replicate(sizeOmega, calcAllF())
-  allF
-allF[1,5]
+  testi = unlist(allF[1,1])
+  testi
+  print(3 %in% testi)
   test <- allF[2,1]
   plot(test$F1$x, test$F1$y, col = "red")
   points(test$F2$x, test$F2$y, col = "blue")
