@@ -11,6 +11,7 @@ library(plyr)
 library(plotly)
 library(mltools)
 library(data.table)
+library(htmlwidgets)
 ```
 
 
@@ -162,12 +163,12 @@ calcProb <- function(sizeOmega, ind_x, ind, allF){
 
 Calculate C for one x (F_i (x) still missing)
 ```{r}
-funcC <- function(ind_x, sizeOmega, allF){
+funcC <- function(ind_x, sizeOmega, allF, empCDF){
   res = 0
   
   for(ind in 1:3){
     # print(res)
-    res = res + calcProb(sizeOmega, ind_x, ind, allF)
+    res = res + calcProb(sizeOmega, ind_x, ind, allF)*(empCDF[ind_x]+(ind-1))
   }
   # print(res)
   return(res/4)
@@ -179,8 +180,11 @@ calcAllC <- function(){
   allF = replicate(sizeOmega, calcAllF())
   n <- length(R2$x)
   Cxy <- numeric(n)
+  dt <- data.table(x = rnorm(100,-5,5), y = rnorm(100,-5,5))
+  empCDF <- empirical_cdf(dt, ubounds=CJ(x = xR2, y = yR2))
+  empCDF <- empCDF$CDF
   for(i in 1:n){
-    Cxy[i] <- funcC(i, sizeOmega, allF)
+    Cxy[i] <- funcC(i, sizeOmega, allF, empCDF)
   }
   final <- R2
   final$Cxy <- Cxy
@@ -191,9 +195,13 @@ calcAllC <- function(){
 Calculate all the X_(i), F_i for all omega 
 ```{r}
 calcAllF <- function(){
-  X1w = runif(2,lowerBound, upperBound)
-  X2w = runif(2,lowerBound, upperBound)
-  X3w = runif(2,lowerBound, upperBound)
+  # X1w = runif(2,lowerBound, upperBound)
+  # X2w = runif(2,lowerBound, upperBound)
+  # X3w = runif(2,lowerBound, upperBound)
+  X1w = rpois(2,4)
+  X2w = rpois(2,4)
+  X3w = rpois(2,4)
+  
   ret <- calcB2(X1w,X2w,X3w)
   B2w <- ret$B2w
   ind <- ret$ind
@@ -213,60 +221,37 @@ calcAllF <- function(){
 
 ```{r}
 #set.seed(42)
-sizeOmega <- 10
+sizeOmega <- 20
 lowerBound <- -1
 upperBound <- 1
 
-xR2 <- seq(-10,10,1)
-yR2 <- seq(-10,10,1)
+xR2 <- seq(-20,20,1)
+yR2 <- seq(-20,20,1)
 R2 <- expand.grid(x = xR2, y = yR2)
 temp <- R2$x
 R2$x <- R2$y
 R2$y <- temp
 final <- calcAllC()
-final$Cxy
-
-```
-
-
-```{r}
-dt <- data.table(x = runif(100,-5,5), y = runif(100,-5,5))
-empCDF <- empirical_cdf(dt, ubounds=CJ(x = xR2, y = yR2))
-MatrixempCDF <- matrix(empCDF$CDF, nrow = sqrt(length(empCDF$CDF)), byrow = TRUE)
-MatrixempCDF
-empCDF
-
-length(final$Cxy)
 matrixC <- matrix(final$Cxy, nrow= sqrt(length(final$Cxy)),byrow=FALSE)
-test1 <- list(x, y, matrixC)
-# test1[[1]]
-# x
-persp(test1[[1]],test1[[2]],test1[[3]],col = "springgreen", shade = 0.5)
-
+PoissonV1 <- plot_ly(x = xR2, y = yR2, z = matrixC, type = "surface")
+UnifV1
+jpeg("Poisson4-20_20_Om20.jpeg")
+persp(xR2, yR2, matrixC,col = "springgreen", shade = 0.5, xlab = "x_1", ylab = "x_2", zlab = "C(x)")
+dev.off()
+jpeg("Poisson4-20_20_Om20Contour.jpeg")
+contour(xR2, yR2, matrixC)
+dev.off()
 ```
 
-```{r}
-jpeg("plot.jpeg")
-persp(x,y,matrixC,col = "springgreen", shade = 0.5)
-dev.off()
 
-save(test1, file = "test1.RData")
+```{r}
+
 ```
 
 
 Some testing
 
 ```{r}
-  dim(allF)
-  allF = replicate(sizeOmega, calcAllF())
-  allF[,2]
-  testi = unlist(allF[1,1])
-  testi
-  print(3 %in% testi)
-  test <- allF[2,1]
-  plot(test$F1$x, test$F1$y, col = "red")
-  points(test$F2$x, test$F2$y, col = "blue")
-  points(test$F3$x, test$F3$y, col = "green")
 
 ```
 
